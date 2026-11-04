@@ -21,6 +21,10 @@ SESSION_MAX_AGE = 30 * 24 * 3600
 SESSION_PURPOSE = "opus-session"
 
 TOKEN_HEADER = "X-OPUS-Token"
+# The person a module asks on behalf of. Only ever narrows: the module's token
+# still decides what may be reached, and the person's standing can only take
+# away from that.
+FOR_HEADER = "X-OPUS-For"
 
 SESSION_KEY_MIN = 32
 

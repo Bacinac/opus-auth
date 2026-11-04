@@ -23,6 +23,10 @@ class Person:
     version: int
     role: str
     display: str
+    # the people whose photographs a guest sees; empty is none of them
+    circle: tuple[int, ...] = ()
+    # which face in the photographs this account is, where it is one
+    person_id: int | None = None
 
 
 class AuthorityUnavailable(Exception):
@@ -94,7 +98,9 @@ class Authority:
                     resp = await http.get(f"{self.url}/api/auth/people",
                                           headers={TOKEN_HEADER: self.token})
                 resp.raise_for_status()
-                people = {p["name"]: Person(p["name"], int(p["version"]), p["role"], p["display"])
+                people = {p["name"]: Person(p["name"], int(p["version"]), p["role"], p["display"],
+                                         tuple(int(i) for i in p.get("circle") or ()),
+                                         p.get("person_id"))
                           for p in resp.json()["people"] if not p["disabled"]}
             except (httpx.HTTPError, KeyError, TypeError, ValueError) as why:
                 self._complain(f"{type(why).__name__}: {why}")

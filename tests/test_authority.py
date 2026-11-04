@@ -12,11 +12,13 @@ TOKEN = "module-token"
 
 # What Library's accounts.shown() answers, field for field.
 FILIP = {"name": "filip", "display": "Filip", "role": "user", "disabled": False,
-       "version": 3, "person_id": 12}
+       "version": 3, "person_id": 12, "circle": []}
 BOSS = {"name": "boss", "display": "boss", "role": "admin", "disabled": False,
-        "version": 1, "person_id": None}
+        "version": 1, "person_id": None, "circle": []}
 GONE = {"name": "kata", "display": "Kata", "role": "user", "disabled": True,
-        "version": 5, "person_id": None}
+        "version": 5, "person_id": None, "circle": []}
+COUSIN = {"name": "ante", "display": "Ante", "role": "guest", "disabled": False,
+          "version": 2, "person_id": 40, "circle": [40, 41]}
 
 
 class Clock:
@@ -59,12 +61,20 @@ def run(coroutine):
 def test_people_payload(clock):
     library = Library()
     people = run(library.authority().people())
-    assert people == {"filip": Person("filip", 3, "user", "Filip"),
+    assert people == {"filip": Person("filip", 3, "user", "Filip", person_id=12),
                       "boss": Person("boss", 1, "admin", "boss")}
     (asked,) = library.asked
     assert asked.method == "GET"
     assert str(asked.url) == "http://library:8095/api/auth/people"
     assert asked.headers["X-OPUS-Token"] == TOKEN
+
+
+def test_a_guest_carries_the_people_whose_photographs_they_see(clock):
+    library = Library()
+    library.people = [FILIP, COUSIN]
+    people = run(library.authority().people())
+    assert people["ante"] == Person("ante", 2, "guest", "Ante", (40, 41), 40)
+    assert people["filip"].circle == ()
 
 
 def test_people_asked_once_for_a_crowd(clock):
@@ -109,7 +119,7 @@ def test_current_follows_a_password_changed_a_moment_ago(clock):
     run(authority.people())
     library.people = [FILIP | {"version": 4}, BOSS]
     clock.now += Authority.PAUSE
-    assert run(authority.current("filip", 4)) == Person("filip", 4, "user", "Filip")
+    assert run(authority.current("filip", 4)) == Person("filip", 4, "user", "Filip", person_id=12)
     assert run(authority.current("filip", 3)) is None
 
 
@@ -137,7 +147,7 @@ def test_current_does_not_refuse_on_a_copy_it_could_not_refresh(clock):
     clock.now += 0.5
     assert run(authority.current("filip", 4)) is None
     clock.now += Authority.PAUSE
-    assert run(authority.current("filip", 4)) == Person("filip", 4, "user", "Filip")
+    assert run(authority.current("filip", 4)) == Person("filip", 4, "user", "Filip", person_id=12)
 
 
 def test_switched_off_and_removed_are_nobody(clock):
@@ -168,11 +178,11 @@ def test_unavailable_keeps_what_was_known_and_says_so_once(clock, caplog, failur
 def test_a_positive_session_expires_after_a_bounded_authority_outage(clock):
     library = Library()
     authority = library.authority()
-    assert run(authority.current("filip", 3)) == Person("filip", 3, "user", "Filip")
+    assert run(authority.current("filip", 3)) == Person("filip", 3, "user", "Filip", person_id=12)
     library.answer = lambda request: httpx.Response(503)
 
     clock.now += Authority.TTL
-    assert run(authority.current("filip", 3)) == Person("filip", 3, "user", "Filip")
+    assert run(authority.current("filip", 3)) == Person("filip", 3, "user", "Filip", person_id=12)
     clock.now += Authority.MAX_STALE
     assert run(authority.current("filip", 3)) is None
 
